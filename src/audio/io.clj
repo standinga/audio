@@ -96,7 +96,7 @@
   audio file."
   ([samples path] (write-wav-data samples path 44100 2))
   ([samples path frame-rate n-channels]
-  (let [interlaved (interlave-samples samples)
+  (let [interlaved (if (= (type samples) clojure.lang.PersistentArrayMap) (interlave-samples samples) samples)
         data (map *ceiling interlaved)
         frame-rate   (float frame-rate)
         n-channels   (int n-channels)
@@ -176,7 +176,7 @@
      (.start clip))))
 
 (defn play-mono-seq
-  "plays one channel at fs 44100"
+  "plays one channel at fs 44100, takes input data and option level gain"
   ([input] (play-mono-seq input 1))
   ([input level]
   (play-seq {:left (gain input level) :right (gain input level)})))
@@ -187,17 +187,18 @@
   (map str data))
 
 (defn writeSamplesToText
-  "write samples as text each line double sample"
-  [fname samples]
+  "write samples as text each line is sample represented as double between -1 and 1,
+  if samples are stereo as {left: l right: r}, will write only left channel"
+  [samples fname]
+  (let [samplesToWrite (if (= (type samples) clojure.lang.PersistentArrayMap) (:left samples) samples)]
   (with-open [w (clojure.java.io/writer fname)]
-  (doseq [line (toString samples)]
+  (doseq [line (toString samplesToWrite)]
     (.write w line)
-    (.newLine w))))
+    (.newLine w)))))
 
 (defn getDataFromText
   "parse doubles from text fromated file"
   [fname]
   (with-open [rdr (clojure.java.io/reader fname)]
     (->> (reduce  conj [] (line-seq rdr))
-         (map read-string)
-         )))
+         (map read-string))))
